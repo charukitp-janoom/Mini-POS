@@ -153,6 +153,8 @@
     .modal-input-row input { font-size: 22px; font-weight: bold; text-align: center; letter-spacing: 2px; }
     .big-btn { width: 44px; height: 44px; border-radius: 10px; border: 1px solid #cbd5e1; background: #f1f5f9; font-size: 22px; cursor: pointer; flex-shrink: 0; font-weight: bold; display:flex;align-items:center;justify-content:center; }
 
+    .field-label { font-size: 12px; font-weight: bold; color: var(--gray); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+
     /* Receipt */
     #section-receipt {
       display: none;
@@ -370,7 +372,10 @@
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <label style="font-size:13px;font-weight:bold;color:var(--gray);text-transform:uppercase;">รายการสินค้าทั้งหมด</label>
-          <button class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:13px;" onclick="loadRealProducts();renderStockList();toast('🔄 รีเฟรชสต็อกแล้ว')">🔄 รีเฟรช</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:13px;" onclick="openAddProductModal()">➕ เพิ่มสินค้า</button>
+            <button class="btn btn-outline" style="width:auto;padding:8px 14px;font-size:13px;" onclick="loadRealProducts().then(()=>renderStockList());toast('🔄 รีเฟรชแล้ว')">🔄</button>
+          </div>
         </div>
 
         <!-- Summary badges -->
@@ -383,6 +388,68 @@
         <div id="stock-list">
           <div style="text-align:center;color:var(--gray);padding:20px;">กำลังโหลด...</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Product Modal -->
+  <div class="modal-bg hidden" id="add-product-modal">
+    <div class="modal" style="max-width:400px;max-height:90vh;overflow-y:auto;">
+      <h3 style="margin-bottom:4px;">➕ เพิ่มสินค้าใหม่</h3>
+      <p class="modal-sub">กรอกข้อมูลสินค้าให้ครบถ้วน</p>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+
+        <div>
+          <label class="field-label">ชื่อสินค้า <span style="color:var(--red)">*</span></label>
+          <input type="text" id="ap-name" placeholder="เช่น น้ำดื่ม 600ml">
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <label class="field-label">รหัสสินค้า</label>
+            <input type="text" id="ap-id" placeholder="PRD001 (ว่าง=สุ่ม)">
+          </div>
+          <div style="flex:1;">
+            <label class="field-label">หมวดหมู่</label>
+            <input type="text" id="ap-category" placeholder="เช่น เครื่องดื่ม">
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <label class="field-label">ราคา (฿) <span style="color:var(--red)">*</span></label>
+            <input type="number" id="ap-price" placeholder="0" min="0">
+          </div>
+          <div style="flex:1;">
+            <label class="field-label">สต็อกเริ่มต้น</label>
+            <input type="number" id="ap-stock" placeholder="0" min="0" value="0">
+          </div>
+        </div>
+
+        <div>
+          <label class="field-label">คำอธิบายสินค้า</label>
+          <input type="text" id="ap-description" placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)">
+        </div>
+
+        <div>
+          <label class="field-label">URL รูปภาพ</label>
+          <input type="text" id="ap-image" placeholder="https://... (ไม่บังคับ)">
+        </div>
+
+        <div>
+          <label class="field-label">สถานะ</label>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <button class="modal-tab active" id="ap-status-active"   onclick="setApStatus('ACTIVE')">✅ ขายอยู่</button>
+            <button class="modal-tab"        id="ap-status-inactive" onclick="setApStatus('INACTIVE')">🚫 ปิดขาย</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button class="btn btn-outline" onclick="closeAddProductModal()" style="flex:1;">ยกเลิก</button>
+        <button class="btn btn-primary" id="ap-confirm-btn" onclick="confirmAddProduct()" style="flex:1;">💾 บันทึก</button>
       </div>
     </div>
   </div>
@@ -1014,6 +1081,76 @@
     renderStockList();
     renderProductButtons();
   }
+
+  // ===========================================================================
+  // 11. ADD PRODUCT MODAL
+  // ===========================================================================
+  let apStatus = 'ACTIVE';
+
+  function openAddProductModal() {
+    // รีเซ็ตฟอร์ม
+    ['ap-name','ap-id','ap-category','ap-description','ap-image'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('ap-price').value = '';
+    document.getElementById('ap-stock').value = '0';
+    setApStatus('ACTIVE');
+    document.getElementById('add-product-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('ap-name').focus(), 100);
+  }
+
+  function closeAddProductModal() {
+    document.getElementById('add-product-modal').classList.add('hidden');
+  }
+
+  function setApStatus(status) {
+    apStatus = status;
+    document.getElementById('ap-status-active').classList.toggle('active', status === 'ACTIVE');
+    document.getElementById('ap-status-inactive').classList.toggle('active', status === 'INACTIVE');
+  }
+
+  async function confirmAddProduct() {
+    const name  = document.getElementById('ap-name').value.trim();
+    const price = document.getElementById('ap-price').value;
+
+    if (!name)              return toast('⚠️ กรุณากรอกชื่อสินค้า');
+    if (price === '' || isNaN(Number(price)) || Number(price) < 0)
+                            return toast('⚠️ กรุณากรอกราคาให้ถูกต้อง');
+
+    const payload = {
+      action:      'admin_add_product',
+      adminSecret,
+      productId:   document.getElementById('ap-id').value.trim() || '',
+      name,
+      description: document.getElementById('ap-description').value.trim(),
+      price:       Number(price),
+      stock:       Number(document.getElementById('ap-stock').value) || 0,
+      category:    document.getElementById('ap-category').value.trim(),
+      imageUrl:    document.getElementById('ap-image').value.trim(),
+      status:      apStatus
+    };
+
+    setBtnLoading('ap-confirm-btn', true, '');
+    const res = await callGAS(payload);
+    setBtnLoading('ap-confirm-btn', false, '💾 บันทึก');
+
+    if (res.status !== 'success') return toast('❌ ' + res.message);
+
+    toast(`✅ เพิ่มสินค้า "${name}" สำเร็จ! (${res.productId})`);
+    closeAddProductModal();
+
+    // โหลดสินค้าใหม่และ re-render ทั้ง 2 views
+    await loadRealProducts();
+    renderStockList();
+    renderProductButtons();
+  }
+
+  // ปิด add-product modal เมื่อกดพื้นหลัง
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('add-product-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeAddProductModal();
+    });
+  });
 
 
 </script>
