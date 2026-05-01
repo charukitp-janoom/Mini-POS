@@ -255,8 +255,8 @@
   <!-- Login -->
   <div id="ov-login" class="overlay hidden">
     <div class="card" style="width:100%; max-width:350px">
-      <h2 style="margin-bottom:20px;color:var(--primary);text-align:center;">🔐 ระบบจัดรายการและออกใบเสร็จ</h2>
-      <input type="password" id="login-secret" placeholder="กรอกรหัสผ่าน (เช่น 1234)" style="text-align:center;font-size:18px;letter-spacing:2px">
+      <h2 style="margin-bottom:20px;color:var(--primary);text-align:center;">🔐 ระบบออกใบเสร็จ (POS)</h2>
+      <input type="password" id="login-secret" placeholder="กรอกรหัสผ่าน" style="text-align:center;font-size:18px;letter-spacing:2px">
       <!-- ✅ [FIX] เพิ่ม onclick="doLogin()" ให้ปุ่ม Login -->
       <button id="btn-login" class="btn btn-primary" style="margin-top:15px;" onclick="doLogin()">🔓 เข้าสู่ระบบ</button>
     </div>
@@ -296,6 +296,8 @@
       </div>
     </div>
   </div>
+
+  <div class="container" id="app" style="display:none;">
 
     <!-- SECTION 1: POS & CART -->
     <div id="section-pos" style="display: block;">
@@ -480,7 +482,7 @@
       </div>
     </div>
 
-  </div>
+  </div><!-- /app -->
 
   <!-- Add Product Modal -->
   <div class="modal-bg hidden" id="add-product-modal">
