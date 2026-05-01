@@ -300,10 +300,11 @@
     
     setBtnLoading('btn-login', true, '');
     try {
-      const res = await callGAS({ action: 'check_admin', secret: secret });
+      // 🔧 แก้ไข: ใช้ callGAS (POST) แทน fetch (GET) เพื่อทะลุบล็อก CORS ของเบราว์เซอร์
+      const res = await callGAS({ action: 'check_admin', adminSecret: secret });
       setBtnLoading('btn-login', false, '🔓 เข้าสู่ระบบ');
       
-      if(!res.authorized) return toast('❌ รหัสไม่ถูกต้อง');
+      if(res.status !== 'success' || !res.authorized) return toast('❌ รหัสไม่ถูกต้อง');
       
       adminSecret = secret;
       document.getElementById('ov-login').classList.add('hidden');
