@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>POS & Receipt</title>
+  
+  <!-- 1. Barcode/QR Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- 2. Library สำหรับแปลง HTML เป็นรูปภาพ (แชร์/ดาวน์โหลด) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&display=swap');
+    
+    :root { 
+      --primary: #2563eb; 
+      --primary-dark: #1d4ed8;
+      --bg: #f1f5f9; 
+      --card: #ffffff; 
+      --text: #0f172a; 
+      --gray: #64748b; 
+      --red: #ef4444;
+      --green: #10b981;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Kanit', sans-serif; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 80px; }
+    
+    .header { 
+      background: var(--primary); color: #fff; padding: 15px 20px; 
+      display: flex; align-items: center; justify-content: space-between; 
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; 
+    }
+
+    .container { max-width: 600px; margin: 0 auto; padding: 15px; }
+    
+    .card { 
+      background: var(--card); border-radius: 16px; padding: 20px; 
+      margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+      border: 1px solid #e2e8f0;
+    }
+
+    input[type="text"], input[type="number"] { 
+      width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; 
+      border-radius: 10px; font-size: 16px; outline: none; transition: 0.2s; background: #f8fafc;
+    }
+    input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.2); background: #fff;}
+
+    .btn { 
+      padding: 12px 20px; border: none; border-radius: 10px; font-size: 16px; 
+      font-weight: bold; cursor: pointer; display: flex; justify-content: center; 
+      align-items: center; gap: 8px; transition: 0.2s; width: 100%;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+    
+    .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 10px rgba(37,99,235,0.3); }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-red { background: var(--red); color: #fff; }
+    .btn-dark { background: #334155; color: #fff; }
+    .btn-outline { background: transparent; color: var(--text); border: 2px solid #cbd5e1; }
+    .btn-outline:hover { background: #f1f5f9; }
+
+    /* Scanner */
+    #qr-wrap { overflow: hidden; border-radius: 12px; margin-top: 15px; display: none; background: #000; position: relative;}
+    #qr-wrap.show { display: block; }
+    
+    /* Cart Items */
+    .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; }
+    .cart-item:last-child { border-bottom: none; }
+    .cart-item-info { flex: 1; }
+    .cart-item-name { font-weight: bold; font-size: 15px; }
+    .cart-item-price { color: var(--gray); font-size: 13px; }
+    .qty-ctrl { display: flex; align-items: center; gap: 10px; }
+    .qty-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; font-weight: bold; cursor: pointer; }
+    .qty-btn:active { background: #e2e8f0; }
+    .rm-btn { color: var(--red); background: transparent; border: none; font-size: 18px; cursor: pointer; padding: 5px; }
+
+    /* Mock Products Quick Select */
+    .mock-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+    .mock-item { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; background: #fff; transition: 0.2s;}
+    .mock-item:hover { border-color: var(--primary); background: #eff6ff; }
+    .mock-name { font-weight: bold; font-size: 13px; margin-bottom: 5px;}
+    .mock-price { color: var(--primary); font-size: 13px; font-weight: bold; }
+
+    /* Receipt Template (Used for display and canvas) */
+    .receipt-wrapper { display: flex; justify-content: center; margin-bottom: 20px; }
+    #receipt-template {
+      width: 100%; max-width: 380px; background: #fff; color: #000; 
+      padding: 25px; font-family: 'Courier New', Courier, monospace;
+      border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    
+    .toast { 
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); 
+      background: rgba(15, 23, 42, 0.9); color: #fff; padding: 12px 24px; 
+      border-radius: 50px; font-size: 14px; z-index: 3000; 
+      opacity: 0; transition: opacity 0.3s; pointer-events: none; 
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, -10px); }
+
+    /* Fixed Bottom Bar */
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
+      padding: 15px 20px; border-top: 1px solid #e2e8f0;
+      display: flex; justify-content: space-between; align-items: center; z-index: 90;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div style="font-weight:bold; font-size:18px;">🛒 ระบบออกใบเสร็จ (POS Demo)</div>
+  </header>
+
+  <div class="container">
+    
+    <!-- ========================================== -->
+    <!-- SECTION 1: POS & CART                      -->
+    <!-- ========================================== -->
+    <div id="section-pos" style="display: block;">
+      
+      <!-- ข้อมูลลูกค้า -->
+      <div class="card">
+        <label style="font-size: 13px; font-weight: bold; color: var(--gray); text-transform: uppercase;">ข้อมูลลูกค้า</label>
+        <input type="text" id="customer-name" placeholder="ชื่อลูกค้า (เว้นว่าง = ลูกค้าทั่วไป)" style="margin-top: 8px;">
+      </div>
+
+      <!-- เพิ่มสินค้า -->
+      <div class="card" style="border-color: var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <label style="font-size: 13px; font-weight: bold; color: var(--primary); text-transform: uppercase;">เพิ่มสินค้าลงตะกร้า</label>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <input type="text" id="manual-code" placeholder="สแกน หรือ พิมพ์รหัส..." autocomplete="off">
+          <button class="btn btn-primary" style="width: 60px; padding: 0;" onclick="startScanner()" id="btn-start-scan">
+            📷
+          </button>
+          <button class="btn btn-dark" style="width: 70px; padding: 0;" onclick="handleManualSubmit()">เพิ่ม</button>
+        </div>
+
+        <!-- Scanner View -->
+        <div id="qr-wrap">
+          <div id="qr-reader" style="width:100%;"></div>
+          <button class="btn btn-red" style="border-radius:0;" onclick="stopScanner()">ปิดกล้อง</button>
+        </div>
+
+        <!-- Quick Mock Products -->
+        <div style="margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+          <div style="font-size: 12px; color: var(--gray); text-align: center;">-- หรือเลือกสินค้าทดสอบด่วน --</div>
+          <div class="mock-grid" id="mock-products-grid">
+            <!-- Render via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ตะกร้าสินค้า -->
+      <div class="card" style="margin-bottom: 80px;">
+        <label style="font-size: 13px; font-weight: bold; color: var(--gray); text-transform: uppercase;">ตะกร้าสินค้า</label>
+        <div id="cart-list" style="margin-top: 10px; min-height: 100px;">
+          <div style="text-align: center; color: var(--gray); padding: 30px 0; font-size: 14px;">ยังไม่มีสินค้าในตะกร้า</div>
+        </div>
+      </div>
+
+      <!-- Bottom Checkout Bar -->
+      <div class="bottom-bar" id="checkout-bar">
+        <div>
+          <div style="font-size: 12px; color: var(--gray);">ยอดรวมทั้งสิ้น</div>
+          <div style="font-size: 24px; font-weight: bold; color: var(--primary);" id="cart-total">฿0</div>
+        </div>
+        <button class="btn btn-primary" style="width: auto; padding: 12px 30px;" onclick="generateReceipt()" id="btn-checkout" disabled>
+          🧾 ออกใบเสร็จ
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- SECTION 2: RECEIPT VIEW                    -->
+    <!-- ========================================== -->
+    <div id="section-receipt" style="display: none;">
+      
+      <!-- ปุ่มเครื่องมือ -->
+      <div class="card" style="background: #f8fafc; border-style: dashed; display: flex; gap: 10px; margin-bottom: 20px;">
+        <button class="btn btn-outline" style="flex:1; background: #fff;" onclick="printReceipt()">🖨️ พิมพ์</button>
+        <button class="btn btn-primary" style="flex:1;" id="btn-share" onclick="shareReceipt()">📤 แชร์/บันทึกรูป</button>
+      </div>
+
+      <!-- พื้นที่ใบเสร็จ -->
+      <div class="receipt-wrapper">
+        <div id="receipt-template">
+          <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 15px; margin-bottom: 15px;">
+            <h2 style="margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 1px;">ใบเสร็จรับเงิน</h2>
+            <p style="margin: 5px 0 0 0; font-size: 14px;">ร้านค้าออนไลน์ (Demo)</p>
+          </div>
+          
+          <div style="font-size: 14px; line-height: 1.6; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between;"><span><strong>เลขที่:</strong></span> <span id="tpl-id"></span></div>
+            <div style="display: flex; justify-content: space-between;"><span><strong>วันที่:</strong></span> <span id="tpl-date"></span></div>
+            <div style="display: flex; justify-content: space-between;"><span><strong>ลูกค้า:</strong></span> <span id="tpl-name"></span></div>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+            <thead>
+              <tr style="border-top: 1px solid #000; border-bottom: 1px solid #000;">
+                <th style="text-align: left; padding: 8px 0;">รายการ</th>
+                <th style="text-align: center; padding: 8px 0;">จำนวน</th>
+                <th style="text-align: right; padding: 8px 0;">ราคา</th>
+              </tr>
+            </thead>
+            <tbody id="tpl-items">
+              <!-- JS Fills This -->
+            </tbody>
+          </table>
+
+          <div style="border-top: 2px solid #000; padding-top: 10px; margin-bottom: 30px;">
+            <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold;">
+              <span>ยอดรวม (บาท)</span>
+              <span id="tpl-total">0.00</span>
+            </div>
+          </div>
+
+          <div style="text-align: center; font-size: 12px; color: #555;">
+            <p style="margin: 5px 0;">*** ขอบคุณที่ใช้บริการ ***</p>
+            <p style="margin: 5px 0;">ระบบจัดการ POS & Receipt</p>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-outline" style="border:none; color: var(--gray); margin-bottom: 40px;" onclick="resetToPOS()">
+        ⬅️ กลับไปทำรายการใหม่
+      </button>
+
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+  // ===========================================================================
+  // 1. STATE & MOCK DATA
+  // ===========================================================================
+  let scanner = null;
+  let isScanning = false;
+  let cart = [];
+  let currentReceiptId = '';
+
+  // ฐานข้อมูลจำลอง (Mock Products)
+  const mockProducts = [
+    { id: 'P001', name: 'เสื้อยืด (สีดำ)', price: 250 },
+    { id: 'P002', name: 'กางเกงยีนส์', price: 590 },
+    { id: 'P003', name: 'หมวกแก๊ป', price: 150 },
+    { id: 'P004', name: 'ค่าจัดส่ง EMS', price: 50 }
+  ];
+
+  window.onload = () => {
+    renderMockButtons();
+  };
+
+  // ===========================================================================
+  // 2. AUDIO & UI UTILS
+  // ===========================================================================
+  function playBeep(type = 'success') {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      if (type === 'success') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.start(); osc.stop(ctx.currentTime + 0.1);
+      } else {
+        osc.type = 'square'; osc.frequency.setValueAtTime(300, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.start(); osc.stop(ctx.currentTime + 0.3);
+      }
+    } catch (e) { console.warn("Audio Context not supported"); }
+  }
+
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2000);
+  }
+
+  // ===========================================================================
+  // 3. POS & CART LOGIC
+  // ===========================================================================
+  function renderMockButtons() {
+    const grid = document.getElementById('mock-products-grid');
+    grid.innerHTML = mockProducts.map(p => `
+      <div class="mock-item" onclick="processProductCode('${p.id}')">
+        <div class="mock-name">${p.name}</div>
+        <div class="mock-price">฿${p.price}</div>
+      </div>
+    `).join('');
+  }
+
+  function handleManualSubmit() {
+    const code = document.getElementById('manual-code').value.trim().toUpperCase();
+    if (!code) { playBeep('error'); return toast('⚠️ กรุณากรอกรหัส'); }
+    processProductCode(code);
+  }
+
+  function processProductCode(code) {
+    document.getElementById('manual-code').value = ''; // เคลียร์ช่องพิมพ์
+    
+    // ค้นหาสินค้าจากฐานข้อมูลจำลอง
+    let product = mockProducts.find(p => p.id === code);
+    
+    // หากสแกนรหัสอื่นที่ไม่มีในระบบ ให้สร้างเป็นสินค้าทั่วไปชั่วคราว
+    if (!product) {
+      const randomPrice = Math.floor(Math.random() * 500) + 100;
+      product = { id: code, name: `สินค้าทั่วไป (${code})`, price: randomPrice };
+    }
+
+    addToCart(product);
+  }
+
+  function addToCart(product) {
+    playBeep('success');
+    const existing = cart.find(item => item.id === product.id);
+    if (existing) {
+      existing.qty += 1;
+    } else {
+      cart.push({ ...product, qty: 1 });
+    }
+    renderCart();
+    toast(`✅ เพิ่ม ${product.name}`);
+  }
+
+  function updateQty(id, delta) {
+    const item = cart.find(i => i.id === id);
+    if (!item) return;
+    item.qty += delta;
+    if (item.qty <= 0) {
+      cart = cart.filter(i => i.id !== id); // ลบออกถ้าเหลือน้อยกว่า 1
+    }
+    renderCart();
+  }
+
+  function renderCart() {
+    const list = document.getElementById('cart-list');
+    const btnCheckout = document.getElementById('btn-checkout');
+    
+    if (cart.length === 0) {
+      list.innerHTML = '<div style="text-align: center; color: var(--gray); padding: 30px 0; font-size: 14px;">ยังไม่มีสินค้าในตะกร้า</div>';
+      document.getElementById('cart-total').textContent = '฿0';
+      btnCheckout.disabled = true;
+      return;
+    }
+
+    let total = 0;
+    list.innerHTML = cart.map(item => {
+      const itemTotal = item.price * item.qty;
+      total += itemTotal;
+      return `
+        <div class="cart-item">
+          <div class="cart-item-info">
+            <div class="cart-item-name">${item.name}</div>
+            <div class="cart-item-price">฿${item.price.toLocaleString()} x ${item.qty}</div>
+          </div>
+          <div class="qty-ctrl">
+            <button class="qty-btn" onclick="updateQty('${item.id}', -1)">-</button>
+            <span style="font-weight:bold; width:20px; text-align:center;">${item.qty}</span>
+            <button class="qty-btn" onclick="updateQty('${item.id}', 1)">+</button>
+            <button class="rm-btn" onclick="updateQty('${item.id}', -999)">✕</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('cart-total').textContent = `฿${total.toLocaleString()}`;
+    btnCheckout.disabled = false;
+  }
+
+  // ===========================================================================
+  // 4. SCANNER LOGIC (Camera)
+  // ===========================================================================
+  function startScanner() {
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      toast("⚠️ กล้องต้องใช้งานผ่าน HTTPS");
+    }
+    document.getElementById('btn-start-scan').style.display = 'none';
+    document.getElementById('qr-wrap').classList.add('show');
+    
+    scanner = new Html5Qrcode('qr-reader');
+    scanner.start(
+      { facingMode: 'environment' }, 
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        if (!isScanning) return;
+        stopScanner();
+        processProductCode(decodedText.toUpperCase());
+      },
+      (error) => {}
+    ).catch(err => { toast('❌ ไม่สามารถเปิดกล้องได้'); stopScanner(); });
+    isScanning = true;
+  }
+
+  function stopScanner() {
+    if (scanner && isScanning) { scanner.stop().catch(()=>{}); isScanning = false; }
+    document.getElementById('qr-wrap').classList.remove('show');
+    document.getElementById('btn-start-scan').style.display = 'flex';
+  }
+
+  // ===========================================================================
+  // 5. RECEIPT GENERATION & ACTIONS
+  // ===========================================================================
+  function generateReceipt() {
+    if (cart.length === 0) return;
+    
+    // สร้างข้อมูลใบเสร็จ
+    const customerName = document.getElementById('customer-name').value.trim() || 'ลูกค้าทั่วไป';
+    currentReceiptId = 'INV' + Math.floor(Math.random() * 1000000);
+    const dateStr = new Date().toLocaleString('th-TH');
+    let total = 0;
+
+    // เติมข้อมูลลง Template HTML
+    document.getElementById('tpl-id').textContent = currentReceiptId;
+    document.getElementById('tpl-date').textContent = dateStr;
+    document.getElementById('tpl-name').textContent = customerName;
+    
+    const tplItems = document.getElementById('tpl-items');
+    tplItems.innerHTML = cart.map(item => {
+      const itemTotal = item.price * item.qty;
+      total += itemTotal;
+      return `
+        <tr>
+          <td style="padding: 6px 0;">${item.name}</td>
+          <td style="text-align: center; padding: 6px 0;">${item.qty}</td>
+          <td style="text-align: right; padding: 6px 0;">${itemTotal.toLocaleString()}</td>
+        </tr>
+      `;
+    }).join('');
+
+    document.getElementById('tpl-total').textContent = total.toLocaleString();
+
+    // สลับหน้าจอ
+    document.getElementById('section-pos').style.display = 'none';
+    document.getElementById('checkout-bar').style.display = 'none';
+    document.getElementById('section-receipt').style.display = 'block';
+    
+    window.scrollTo(0, 0);
+    toast('✅ ออกใบเสร็จสำเร็จ');
+  }
+
+  function resetToPOS() {
+    cart = [];
+    document.getElementById('customer-name').value = '';
+    renderCart();
+    
+    document.getElementById('section-receipt').style.display = 'none';
+    document.getElementById('section-pos').style.display = 'block';
+    document.getElementById('checkout-bar').style.display = 'flex';
+  }
+
+  // -- พิมพ์ใบเสร็จ --
+  function printReceipt() {
+    const templateHtml = document.getElementById('receipt-template').outerHTML;
+    const printWindow = window.open('', '', 'width=400,height=600');
+    printWindow.document.write('<html><head><title>Print Receipt</title>');
+    printWindow.document.write(`
+      <style>
+        body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; color: #000; display:flex; justify-content:center;}
+        @media print { @page { margin: 0; } body { padding: 10px; } #receipt-template { box-shadow:none; border:none; width: 100%;} }
+      </style>
+    `);
+    printWindow.document.write('</head><body>' + templateHtml + '</body></html>');
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+  }
+
+  // -- แชร์/บันทึกรูปภาพ (html2canvas) --
+  async function shareReceipt() {
+    const btn = document.getElementById('btn-share');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ กำลังสร้างรูป...'; btn.disabled = true;
+
+    try {
+      const elementToCapture = document.getElementById('receipt-template');
+      
+      // Render HTML เป็น Canvas
+      const canvas = await html2canvas(elementToCapture, { 
+        scale: 2, // ภาพคมชัดขึ้น
+        backgroundColor: '#ffffff' 
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) throw new Error("Canvas to Blob failed");
+        const fileName = `receipt_${currentReceiptId}.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        // ทดสอบ Web Share API (มือถือ)
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try { 
+            await navigator.share({ 
+              files: [file], 
+              title: 'ใบเสร็จรับเงิน', 
+              text: `ใบเสร็จเลขที่ ${currentReceiptId}` 
+            }); 
+          } catch(e) { console.log('Share cancelled'); }
+        } else {
+          // ดาวน์โหลดลงเครื่อง (PC)
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url; link.download = fileName;
+          document.body.appendChild(link); link.click(); document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          toast('✅ ดาวน์โหลดรูปภาพสำเร็จ');
+        }
+        btn.innerHTML = originalText; btn.disabled = false;
+      }, 'image/png');
+    } catch (error) { 
+      toast('❌ เกิดข้อผิดพลาด'); 
+      btn.innerHTML = originalText; btn.disabled = false; 
+    }
+  }
+
+</script>
+</body>
+</html>
