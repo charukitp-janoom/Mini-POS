@@ -155,6 +155,21 @@
 
     .field-label { font-size: 12px; font-weight: bold; color: var(--gray); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
 
+    /* Share Sheet */
+    #share-sheet { align-items: flex-end; }
+    .share-app-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      background: transparent; border: none; cursor: pointer; padding: 4px;
+    }
+    .share-app-btn span { font-family: 'Kanit', sans-serif; font-size: 12px; font-weight: bold; color: var(--text); }
+    .share-icon {
+      width: 54px; height: 54px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transition: transform 0.15s;
+    }
+    .share-app-btn:active .share-icon { transform: scale(0.92); }
+
     /* Receipt */
     #section-receipt {
       display: none;
@@ -313,34 +328,46 @@
 
       <div class="receipt-action-buttons">
         <button class="btn btn-print" onclick="printReceipt()">🖨️ พิมพ์</button>
-        <button class="btn btn-share" id="btn-share" onclick="shareReceipt()">📤 แชร์/บันทึกรูป</button>
+        <button class="btn btn-share" id="btn-share" onclick="openShareSheet()">📤 แชร์ใบเสร็จ</button>
       </div>
 
       <div class="receipt-glow-container">
         <div id="receipt-template">
 
-          <div style="text-align: center; margin-bottom: 15px;">
-            <h2 style="margin: 0; font-size: 28px; font-weight: 900; letter-spacing: 1px; color: #1e293b;">RECEIPT</h2>
-            <!-- ✅ [FIX] ดึง orgName จากระบบแทน hardcode -->
-            <p id="tpl-org" style="margin: 5px 0 0 0; font-size: 14px; color: #334155;"></p>
+          <!-- Header: ชื่อร้าน + หัวใบเสร็จ -->
+          <div style="text-align:center; margin-bottom:14px;">
+            <div style="font-size:11px; font-weight:700; letter-spacing:3px; color:#64748b; text-transform:uppercase; margin-bottom:4px;">ใบเสร็จรับเงิน</div>
+            <div id="tpl-org" style="font-size:22px; font-weight:900; color:#1e293b; line-height:1.2;"></div>
+            <div id="tpl-org-sub" style="font-size:11px; color:#64748b; margin-top:3px;">ขอบคุณที่ใช้บริการ</div>
           </div>
 
           <div class="dashed-divider"></div>
 
-          <div style="font-size: 14px; line-height: 1.8; color: #1e293b;">
-            <div style="display: flex; justify-content: space-between;"><span><strong>Order No:</strong></span> <span id="tpl-id"></span></div>
-            <div style="display: flex; justify-content: space-between;"><span><strong>Date:</strong></span> <span id="tpl-date"></span></div>
-            <div style="display: flex; justify-content: space-between;"><span><strong>Customer:</strong></span> <span id="tpl-name"></span></div>
+          <!-- ข้อมูลออเดอร์ -->
+          <div style="font-size:13px; line-height:2; color:#1e293b;">
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:#64748b;">เลขที่ใบเสร็จ</span>
+              <span style="font-weight:700;" id="tpl-id"></span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:#64748b;">วันที่/เวลา</span>
+              <span id="tpl-date"></span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:#64748b;">ลูกค้า</span>
+              <span id="tpl-name"></span>
+            </div>
           </div>
 
           <div class="dashed-divider"></div>
 
-          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #1e293b; margin-top: 5px;">
+          <!-- หัวตาราง -->
+          <table style="width:100%; border-collapse:collapse; font-size:13px; color:#1e293b;">
             <thead>
-              <tr>
-                <th style="text-align: left; padding-bottom: 8px; font-weight: 900;">Item</th>
-                <th style="text-align: center; padding-bottom: 8px; font-weight: 900;">Qty</th>
-                <th style="text-align: right; padding-bottom: 8px; font-weight: 900;">Price</th>
+              <tr style="border-bottom:1px solid #1e293b;">
+                <th style="text-align:left; padding-bottom:6px; font-weight:900; color:#64748b;">รายการ</th>
+                <th style="text-align:center; padding-bottom:6px; font-weight:900; color:#64748b; width:36px;">จำนวน</th>
+                <th style="text-align:right; padding-bottom:6px; font-weight:900; color:#64748b; width:72px;">ราคา (฿)</th>
               </tr>
             </thead>
             <tbody id="tpl-items"></tbody>
@@ -348,14 +375,23 @@
 
           <div class="solid-divider"></div>
 
-          <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; color: #1e293b; margin-bottom: 25px;">
-            <span>TOTAL (THB)</span>
-            <span id="tpl-total">0</span>
+          <!-- ยอดรวม -->
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+            <span style="font-size:14px; color:#64748b;">ยอดรวมทั้งสิ้น</span>
+            <span style="font-size:22px; font-weight:900; color:#1e293b;">฿<span id="tpl-total">0</span></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:12px; color:#64748b; margin-bottom:4px;">
+            <span>ชำระโดย</span><span>เงินสด / POS</span>
           </div>
 
-          <div style="text-align: center; font-size: 11px; color: #64748b;">
-            <p style="margin: 3px 0;">*** Thank you for your business ***</p>
-            <p id="tpl-org-footer" style="margin: 3px 0;"></p>
+          <div class="dashed-divider"></div>
+
+          <!-- Footer -->
+          <div style="text-align:center; font-size:11px; color:#64748b; line-height:1.8;">
+            <div style="font-size:18px; margin-bottom:4px;">🙏</div>
+            <div style="font-weight:700; color:#1e293b;">ขอบคุณที่ใช้บริการ</div>
+            <div id="tpl-org-footer"></div>
+            <div style="margin-top:6px; font-size:10px; color:#94a3b8;" id="tpl-receipt-note">กรุณาเก็บใบเสร็จไว้เป็นหลักฐาน</div>
           </div>
         </div>
       </div>
@@ -454,6 +490,52 @@
     </div>
   </div>
 
+  <!-- Share Sheet Modal -->
+  <div class="modal-bg hidden" id="share-sheet">
+    <div style="position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:24px 24px 0 0;padding:20px 20px 36px;box-shadow:0 -8px 40px rgba(0,0,0,0.18);max-width:600px;margin:0 auto;">
+      <div style="width:40px;height:4px;background:#cbd5e1;border-radius:4px;margin:0 auto 20px;"></div>
+      <h3 style="text-align:center;font-size:16px;margin-bottom:6px;">📤 แชร์ใบเสร็จ</h3>
+      <p style="text-align:center;font-size:13px;color:var(--gray);margin-bottom:20px;">เลือกช่องทางที่ต้องการแชร์</p>
+
+      <!-- Share targets -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+        <button class="share-app-btn" onclick="doShare('line')">
+          <div class="share-icon" style="background:#06C755;">
+            <svg viewBox="0 0 24 24" fill="white" width="26" height="26"><path d="M12 2C6.48 2 2 6.03 2 11c0 3.13 1.67 5.9 4.25 7.69L5.5 22l3.56-1.87C10.1 20.68 11.04 21 12 21c5.52 0 10-4.03 10-9s-4.48-9-10-9zm-4 11H7v-4h1v4zm3 0h-1V9h1v4zm3 0h-1v-4h1v4z"/></svg>
+          </div>
+          <span>LINE</span>
+        </button>
+        <button class="share-app-btn" onclick="doShare('facebook')">
+          <div class="share-icon" style="background:#1877F2;">
+            <svg viewBox="0 0 24 24" fill="white" width="26" height="26"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          </div>
+          <span>Facebook</span>
+        </button>
+        <button class="share-app-btn" onclick="doShare('tiktok')">
+          <div class="share-icon" style="background:#000;">
+            <svg viewBox="0 0 24 24" fill="white" width="26" height="26"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.31 6.31 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.93a8.2 8.2 0 004.79 1.53V7.01a4.85 4.85 0 01-1.02-.32z"/></svg>
+          </div>
+          <span>TikTok</span>
+        </button>
+        <button class="share-app-btn" onclick="doShare('save')">
+          <div class="share-icon" style="background:#64748b;">
+            <svg viewBox="0 0 24 24" fill="white" width="26" height="26"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          </div>
+          <span>บันทึก</span>
+        </button>
+      </div>
+
+      <!-- Copy text section -->
+      <div style="background:#f8fafc;border-radius:12px;padding:12px;margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--gray);margin-bottom:6px;font-weight:bold;">📋 ข้อความสำหรับแชร์</div>
+        <div id="share-text-preview" style="font-size:13px;color:#1e293b;line-height:1.6;white-space:pre-wrap;"></div>
+        <button onclick="copyShareText()" style="margin-top:10px;width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-family:'Kanit',sans-serif;font-size:13px;font-weight:bold;cursor:pointer;color:var(--primary);">📋 คัดลอกข้อความ</button>
+      </div>
+
+      <button class="btn btn-outline" onclick="closeShareSheet()" style="width:100%;">ปิด</button>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 
 <script>
@@ -525,6 +607,7 @@
         orgName = data.orgName;
         document.getElementById('header-org-name').textContent = orgName + ' (POS)';
         document.getElementById('tpl-org').textContent = orgName;
+        document.getElementById('tpl-org-sub').textContent = orgName;
         document.getElementById('tpl-org-footer').textContent = orgName;
       }
     } catch (e) {
@@ -702,6 +785,7 @@
     document.getElementById('tpl-name').textContent = customerName;
     // ✅ [FIX] ใส่ชื่อร้านที่โหลดมาแล้วแทน hardcode
     document.getElementById('tpl-org').textContent = orgName;
+    document.getElementById('tpl-org-sub').textContent = orgName;
     document.getElementById('tpl-org-footer').textContent = orgName;
 
     const tplItems = document.getElementById('tpl-items');
@@ -793,38 +877,151 @@
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   }
 
-  async function shareReceipt() {
+  // ===========================================================================
+  // 6. PRINT & SHARE
+  // ===========================================================================
+  function printReceipt() {
+    const templateHtml = document.getElementById('receipt-template').outerHTML;
+    const printWindow = window.open('', '', 'width=400,height=600');
+    printWindow.document.write('<html><head><title>ใบเสร็จรับเงิน</title>');
+    printWindow.document.write(`
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; margin: 0; padding: 20px; color: #000; display:flex; justify-content:center; background:#fff;}
+        .dashed-divider { border-top: 2px dashed #1e293b; margin: 12px 0; }
+        .solid-divider  { border-top: 2px solid #1e293b; margin: 12px 0; }
+        @media print { @page { margin: 0; } body { padding: 10px; } #receipt-template { background:#fff !important; } }
+      </style>
+    `);
+    printWindow.document.write('</head><body>' + templateHtml + '</body></html>');
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 600);
+  }
+
+  let receiptBlob = null; // cache blob ไว้ใช้ใน share actions
+
+  async function openShareSheet() {
     const btn = document.getElementById('btn-share');
-    const originalText = btn.innerHTML;
+    const orig = btn.innerHTML;
     btn.innerHTML = '⏳ กำลังสร้างรูป...'; btn.disabled = true;
 
     try {
       const canvas = await html2canvas(document.getElementById('receipt-template'), {
-        scale: 2, backgroundColor: '#e2e8f0'
+        scale: 2.5, backgroundColor: '#e2e8f0', useCORS: true, logging: false
       });
+      await new Promise(resolve => canvas.toBlob(blob => { receiptBlob = blob; resolve(); }, 'image/png'));
+    } catch (e) {
+      toast('❌ ไม่สามารถสร้างรูปได้'); btn.innerHTML = orig; btn.disabled = false; return;
+    }
 
-      canvas.toBlob(async (blob) => {
-        if (!blob) throw new Error('Canvas to Blob failed');
-        const fileName = `receipt_${currentReceiptId}.png`;
-        const file = new File([blob], fileName, { type: 'image/png' });
+    btn.innerHTML = orig; btn.disabled = false;
 
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file], title: 'ใบเสร็จรับเงิน', text: `ใบเสร็จเลขที่ ${currentReceiptId}` });
-          } catch (e) { console.log('Share cancelled'); }
-        } else {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url; link.download = fileName;
-          document.body.appendChild(link); link.click(); document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-          toast('✅ ดาวน์โหลดรูปภาพสำเร็จ');
-        }
-        btn.innerHTML = originalText; btn.disabled = false;
-      }, 'image/png');
-    } catch (error) {
-      toast('❌ เกิดข้อผิดพลาด');
-      btn.innerHTML = originalText; btn.disabled = false;
+    // สร้างข้อความแชร์
+    const total = document.getElementById('tpl-total').textContent;
+    const orderId = document.getElementById('tpl-id').textContent;
+    const customer = document.getElementById('tpl-name').textContent;
+    const date = document.getElementById('tpl-date').textContent;
+    const org = document.getElementById('tpl-org').textContent;
+
+    const shareText = `🧾 ใบเสร็จรับเงิน\n` +
+      `📌 ${org}\n` +
+      `━━━━━━━━━━━━━━\n` +
+      `🔢 เลขที่: ${orderId}\n` +
+      `👤 ลูกค้า: ${customer}\n` +
+      `📅 วันที่: ${date}\n` +
+      `💰 ยอดรวม: ฿${total}\n` +
+      `━━━━━━━━━━━━━━\n` +
+      `✅ ชำระเงินแล้ว`;
+
+    document.getElementById('share-text-preview').textContent = shareText;
+    document.getElementById('share-sheet').classList.remove('hidden');
+  }
+
+  function closeShareSheet() {
+    document.getElementById('share-sheet').classList.add('hidden');
+  }
+
+  async function doShare(target) {
+    if (!receiptBlob) return toast('⚠️ กรุณารอสักครู่');
+
+    const fileName = `receipt_${currentReceiptId}.png`;
+    const file = new File([receiptBlob], fileName, { type: 'image/png' });
+    const shareText = document.getElementById('share-text-preview').textContent;
+
+    if (target === 'save') {
+      // บันทึกลงเครื่อง
+      const url = URL.createObjectURL(receiptBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('✅ บันทึกรูปใบเสร็จแล้ว');
+      closeShareSheet();
+      return;
+    }
+
+    // พยายามใช้ Web Share API (รองรับบน LINE / iOS / Android)
+    const canNativeShare = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
+
+    if (target === 'line') {
+      if (canNativeShare) {
+        try { await navigator.share({ files: [file], text: shareText }); closeShareSheet(); return; } catch(e) {}
+      }
+      // fallback: เปิด LINE Share URL พร้อมข้อความ (รูปต้องบันทึกก่อน)
+      await saveAndOpenFallback(receiptBlob, fileName, `https://line.me/R/share?text=${encodeURIComponent(shareText)}`, 'LINE');
+      return;
+    }
+
+    if (target === 'facebook') {
+      if (canNativeShare) {
+        try { await navigator.share({ files: [file], text: shareText }); closeShareSheet(); return; } catch(e) {}
+      }
+      // Fallback: เปิด Facebook แชร์ (รูปต้องอัปโหลดเอง เพราะ FB ไม่รับ file share โดยตรง)
+      await saveAndOpenFallback(receiptBlob, fileName, `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(shareText)}`, 'Facebook');
+      return;
+    }
+
+    if (target === 'tiktok') {
+      if (canNativeShare) {
+        try { await navigator.share({ files: [file], text: shareText }); closeShareSheet(); return; } catch(e) {}
+      }
+      // TikTok ไม่มี Share URL API — บันทึกรูปแล้วเปิด TikTok
+      await saveAndOpenFallback(receiptBlob, fileName, null, 'TikTok');
+      return;
+    }
+  }
+
+  // Helper: บันทึกรูปก่อน แล้ว toast แนะนำให้ไปแชร์ต่อใน app นั้น
+  async function saveAndOpenFallback(blob, fileName, shareUrl, appName) {
+    // บันทึกรูปลงเครื่องก่อน
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    closeShareSheet();
+
+    if (shareUrl) {
+      toast(`✅ บันทึกรูปแล้ว — กำลังเปิด ${appName}...`);
+      setTimeout(() => window.open(shareUrl, '_blank'), 800);
+    } else {
+      toast(`✅ บันทึกรูปแล้ว — เปิด ${appName} แล้วแนบรูปได้เลย`);
+    }
+  }
+
+  function copyShareText() {
+    const text = document.getElementById('share-text-preview').textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => toast('✅ คัดลอกข้อความแล้ว'));
+    } else {
+      // fallback สำหรับ iOS บางรุ่น
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      toast('✅ คัดลอกข้อความแล้ว');
     }
   }
 
@@ -1149,6 +1346,9 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('add-product-modal').addEventListener('click', function(e) {
       if (e.target === this) closeAddProductModal();
+    });
+    document.getElementById('share-sheet').addEventListener('click', function(e) {
+      if (e.target === this) closeShareSheet();
     });
   });
 
