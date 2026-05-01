@@ -170,6 +170,27 @@
     }
     .share-app-btn:active .share-icon { transform: scale(0.92); }
 
+    /* History */
+    .filter-btn {
+      flex-shrink: 0; padding: 6px 14px; border: 1.5px solid #cbd5e1; border-radius: 20px;
+      background: #fff; font-family: 'Kanit', sans-serif; font-size: 13px; cursor: pointer;
+      color: var(--gray); white-space: nowrap; transition: 0.15s;
+    }
+    .filter-btn.active { border-color: var(--primary); color: var(--primary); background: #eff6ff; font-weight: bold; }
+    .sale-row {
+      padding: 12px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+    }
+    .sale-row:last-child { border-bottom: none; }
+    .sale-row:active { background: #f8fafc; margin: 0 -8px; padding: 12px 8px; border-radius: 8px; }
+    .sale-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold; white-space: nowrap; }
+    .badge-done { background: #d1fae5; color: #065f46; }
+    .badge-paid { background: #dbeafe; color: #1e40af; }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .summary-box { background: #f8fafc; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e2e8f0; }
+    .summary-box .s-val { font-size: 20px; font-weight: 900; color: var(--primary); }
+    .summary-box .s-lbl { font-size: 11px; color: var(--gray); margin-top: 2px; }
+
     /* Receipt */
     #section-receipt {
       display: none;
@@ -248,8 +269,9 @@
 
   <!-- Tab Navigation -->
   <div class="tab-bar" id="tab-bar" style="display:none;">
-    <button class="tab-btn active" id="tab-pos"   onclick="switchTab('pos')">🛒 POS</button>
-    <button class="tab-btn"        id="tab-stock" onclick="switchTab('stock')">📦 จัดการสต็อก</button>
+    <button class="tab-btn active" id="tab-pos"     onclick="switchTab('pos')">🛒 POS</button>
+    <button class="tab-btn"        id="tab-history" onclick="switchTab('history')">📋 ประวัติ</button>
+    <button class="tab-btn"        id="tab-stock"   onclick="switchTab('stock')">📦 สต็อก</button>
   </div>
 
   <!-- Stock Adjust Modal -->
@@ -426,6 +448,38 @@
         </div>
       </div>
     </div>
+
+    <!-- ========================================== -->
+    <!-- SECTION 4: SALE HISTORY                    -->
+    <!-- ========================================== -->
+    <div id="section-history" style="display:none;">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <label style="font-size:13px;font-weight:bold;color:var(--gray);text-transform:uppercase;">ประวัติการขาย</label>
+          <button class="btn btn-outline" style="width:auto;padding:8px 14px;font-size:13px;" onclick="loadSaleHistory()">🔄 รีเฟรช</button>
+        </div>
+
+        <!-- ยอดรวมวันนี้ -->
+        <div id="history-summary" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;"></div>
+
+        <!-- Filter -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;" id="history-filter-bar">
+          <button class="filter-btn active" onclick="setHistoryFilter('ALL')">ทั้งหมด</button>
+          <button class="filter-btn" onclick="setHistoryFilter('TODAY')">วันนี้</button>
+          <button class="filter-btn" onclick="setHistoryFilter('WEEK')">7 วัน</button>
+          <button class="filter-btn" onclick="setHistoryFilter('MONTH')">เดือนนี้</button>
+        </div>
+
+        <!-- Search -->
+        <input type="text" id="history-search" placeholder="🔍 ค้นหาเลขที่ / ชื่อลูกค้า..." style="margin-bottom:12px;" oninput="renderHistoryList()">
+
+        <!-- List -->
+        <div id="history-list">
+          <div style="text-align:center;color:var(--gray);padding:30px;">กำลังโหลด...</div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Add Product Modal -->
@@ -1091,19 +1145,19 @@
 
   function switchTab(tab) {
     currentTab = tab;
-    // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-' + tab).classList.add('active');
 
-    // Hide/show sections (receipt section managed separately)
     const isReceipt = document.getElementById('section-receipt').style.display === 'flex';
 
-    document.getElementById('section-pos').style.display    = (tab === 'pos' && !isReceipt) ? 'block' : 'none';
-    document.getElementById('section-receipt').style.display = (tab === 'pos' && isReceipt)  ? 'flex'  : 'none';
-    document.getElementById('section-stock').style.display  = tab === 'stock' ? 'block' : 'none';
-    document.getElementById('checkout-bar').style.display   = (tab === 'pos' && !isReceipt)  ? 'flex'  : 'none';
+    document.getElementById('section-pos').style.display     = (tab === 'pos' && !isReceipt) ? 'block' : 'none';
+    document.getElementById('section-receipt').style.display  = (tab === 'pos' && isReceipt)  ? 'flex'  : 'none';
+    document.getElementById('section-stock').style.display   = tab === 'stock'   ? 'block' : 'none';
+    document.getElementById('section-history').style.display = tab === 'history' ? 'block' : 'none';
+    document.getElementById('checkout-bar').style.display    = (tab === 'pos' && !isReceipt)  ? 'flex'  : 'none';
 
-    if (tab === 'stock') renderStockList();
+    if (tab === 'stock')   renderStockList();
+    if (tab === 'history') loadSaleHistory();
   }
 
   // ===========================================================================
@@ -1352,6 +1406,128 @@
     });
   });
 
+  // ===========================================================================
+  // 12. SALE HISTORY
+  // ===========================================================================
+  let allOrders = [];
+  let historyFilter = 'ALL';
+
+  async function loadSaleHistory() {
+    const listEl = document.getElementById('history-list');
+    listEl.innerHTML = '<div style="text-align:center;padding:30px;"><div class="spin" style="margin:0 auto;color:var(--primary);"></div></div>';
+
+    const res = await callGAS({ action: 'admin_get_orders', adminSecret, filter: 'ALL' });
+    if (res.status !== 'success') {
+      listEl.innerHTML = '<div style="text-align:center;color:red;padding:20px;">โหลดข้อมูลไม่สำเร็จ</div>';
+      return;
+    }
+    allOrders = res.orders || [];
+    renderHistoryList();
+  }
+
+  function setHistoryFilter(f) {
+    historyFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    renderHistoryList();
+  }
+
+  function parseThaiDate(str) {
+    // รูปแบบ: dd/MM/yyyy HH:mm:ss
+    if (!str) return null;
+    const parts = str.split(' ')[0].split('/');
+    if (parts.length < 3) return null;
+    return new Date(+parts[2], +parts[1] - 1, +parts[0]);
+  }
+
+  function renderHistoryList() {
+    const query  = (document.getElementById('history-search')?.value || '').toLowerCase();
+    const listEl = document.getElementById('history-list');
+    const summEl = document.getElementById('history-summary');
+
+    const now = new Date();
+    const todayStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
+
+    // กรองตามช่วงเวลา
+    let filtered = allOrders.filter(o => {
+      if (historyFilter === 'TODAY') {
+        return o.createdAt && o.createdAt.startsWith(todayStr.padStart(2,'0').replace(/^(\d)\//, '0$1/'));
+      }
+      if (historyFilter === 'TODAY') return o.createdAt && o.createdAt.split(' ')[0] === todayStr;
+      if (historyFilter === 'WEEK') {
+        const d = parseThaiDate(o.createdAt);
+        return d && (now - d) <= 7 * 86400000;
+      }
+      if (historyFilter === 'MONTH') {
+        const d = parseThaiDate(o.createdAt);
+        return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+
+    // กรองตาม search
+    if (query) {
+      filtered = filtered.filter(o =>
+        (o.orderId || '').toLowerCase().includes(query) ||
+        (o.displayName || '').toLowerCase().includes(query)
+      );
+    }
+
+    // คำนวณ summary
+    const totalSales  = filtered.filter(o => o.paymentStatus === 'PAID' || o.orderStatus === 'DONE').reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const countOrders = filtered.length;
+    const countPaid   = filtered.filter(o => o.paymentStatus === 'PAID' || o.orderStatus === 'DONE').length;
+
+    summEl.innerHTML = `
+      <div class="summary-box">
+        <div class="s-val">฿${totalSales.toLocaleString()}</div>
+        <div class="s-lbl">ยอดขายรวม</div>
+      </div>
+      <div class="summary-box">
+        <div class="s-val">${countOrders}</div>
+        <div class="s-lbl">รายการ (${countPaid} ชำระแล้ว)</div>
+      </div>
+    `;
+
+    if (!filtered.length) {
+      listEl.innerHTML = '<div style="text-align:center;color:var(--gray);padding:30px;">ไม่พบรายการ</div>';
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(o => {
+      const statusCls = (o.orderStatus === 'DONE' || o.paymentStatus === 'PAID') ? 'badge-done'
+                      : o.paymentStatus === 'PENDING' ? 'badge-pending' : 'badge-paid';
+      const statusLabel = o.orderStatus === 'DONE' ? 'เสร็จสิ้น'
+                        : o.paymentStatus === 'PAID' ? 'ชำระแล้ว'
+                        : o.paymentStatus === 'REVIEWING' ? 'รอตรวจสลิป'
+                        : 'รอชำระ';
+      const isPOS = (o.userId || '').includes('POS');
+      return `
+        <div class="sale-row" onclick="toggleOrderDetail('${o.orderId}')">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:bold;font-size:14px;">${o.orderId}</div>
+            <div style="font-size:12px;color:var(--gray);margin-top:2px;">
+              ${o.displayName || '-'} ${isPOS ? '🏪' : '📱'} · ${o.createdAt || ''}
+            </div>
+            <!-- Detail (collapsed) -->
+            <div id="detail-${o.orderId}" style="display:none;margin-top:8px;font-size:12px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px;line-height:1.8;">
+              ${o.note ? `📝 ${o.note}<br>` : ''}
+              ${o.slipUrl ? `🖼 <a href="${o.slipUrl}" target="_blank" style="color:var(--primary)">ดูสลิป</a><br>` : ''}
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-weight:900;font-size:15px;">฿${(o.totalAmount||0).toLocaleString()}</div>
+            <span class="sale-badge ${statusCls}" style="margin-top:4px;display:inline-block;">${statusLabel}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function toggleOrderDetail(orderId) {
+    const el = document.getElementById('detail-' + orderId);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
 
 </script>
 </body>
