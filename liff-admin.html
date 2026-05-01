@@ -255,8 +255,8 @@
   <!-- Login -->
   <div id="ov-login" class="overlay hidden">
     <div class="card" style="width:100%; max-width:350px">
-      <h2 style="margin-bottom:20px;color:var(--primary);text-align:center;">🔐 ระบบจัดรายการ</h2>
-      <input type="password" id="login-secret" placeholder="กรอกรหัสผ่าน (เช่น 1756)" style="text-align:center;font-size:18px;letter-spacing:2px">
+      <h2 style="margin-bottom:20px;color:var(--primary);text-align:center;">🔐 ระบบจัดรายการและออกใบเสร็จ</h2>
+      <input type="password" id="login-secret" placeholder="กรอกรหัสผ่าน (เช่น 1234)" style="text-align:center;font-size:18px;letter-spacing:2px">
       <!-- ✅ [FIX] เพิ่ม onclick="doLogin()" ให้ปุ่ม Login -->
       <button id="btn-login" class="btn btn-primary" style="margin-top:15px;" onclick="doLogin()">🔓 เข้าสู่ระบบ</button>
     </div>
@@ -432,7 +432,7 @@
           <label style="font-size:13px;font-weight:bold;color:var(--gray);text-transform:uppercase;">รายการสินค้าทั้งหมด</label>
           <div style="display:flex;gap:8px;">
             <button class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:13px;" onclick="openAddProductModal()">➕ เพิ่มสินค้า</button>
-            <button class="btn btn-outline" style="width:auto;padding:8px 14px;font-size:13px;" onclick="loadRealProducts().then(()=>renderStockList());toast('🔄 รีเฟรชแล้ว')">🔄</button>
+            <button class="btn btn-outline" style="width:auto;padding:8px 14px;font-size:13px;" onclick="loadRealProducts().then(renderStockList);toast('🔄 รีเฟรชแล้ว')">🔄</button>
           </div>
         </div>
 
@@ -596,8 +596,8 @@
   // ===========================================================================
   // 1. CONFIGURATION
   // ===========================================================================
-  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyD5bSwaXxDKRsHTGXtVVBdwlPzZ2rhYiMOpLTY05eTd0KARegqkHWHKbValQZlbOc/exec'; // ← Web App URL ล่าสุด
-  const LIFF_ID = '2009953316-LsEBwXhK'; // ← LIFF ID
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyD5bSwaXxDKRsHTGXtVVBdwlPzZ2rhYiMOpLTY05eTd0KARegqkHWHKbValQZlbOc/exec';
+  const LIFF_ADMIN_ID = '2009953316-LsEBwXhK'; // ← LIFF ID ฝั่ง Admin
 
   let adminSecret = '';
   let scanner = null;
@@ -612,15 +612,13 @@
   // ===========================================================================
   window.onload = async () => {
     try {
-      await liff.init({ liffId: LIFF_ID });
+      await liff.init({ liffId: LIFF_ADMIN_ID });
       if (!liff.isLoggedIn()) { liff.login(); return; }
     } catch (e) {
       console.warn('LIFF init error:', e.message);
-      // ✅ ทำงานต่อได้ถ้า LIFF ล้มเหลว (เช่นเปิดนอก LINE)
     }
     document.getElementById('ov-load').classList.add('hidden');
     document.getElementById('ov-login').classList.remove('hidden');
-    // ✅ [FIX] ลบ addEventListener ซ้ำซ้อนออก เพราะ onclick="doLogin()" บนปุ่มทำงานแล้ว
     document.getElementById('login-secret').addEventListener('keydown', e => {
       if (e.key === 'Enter') doLogin();
     });
@@ -638,34 +636,26 @@
       if (res.status !== 'success' || !res.authorized) return toast('❌ รหัสไม่ถูกต้อง');
 
       adminSecret = secret;
-      document.getElementById('ov-login').classList.add('hidden');
-      document.getElementById('main-header').style.display = 'flex';
-      document.getElementById('tab-bar').style.display = 'flex';
-      document.getElementById('app').style.display = 'block';
 
-      // ✅ [NEW] โหลดชื่อร้านจาก server
-      loadOrgName();
-      loadRealProducts();
-    } catch (e) {
-      setBtnLoading('btn-login', false, '🔓 เข้าสู่ระบบ');
-      toast('❌ เชื่อมต่อไม่ได้: ' + e.message);
-    }
-  }
-
-  // ✅ [NEW] โหลดชื่อร้านจาก health endpoint
-  async function loadOrgName() {
-    try {
-      const res = await fetch(GAS_URL + '?action=health');
-      const data = await res.json();
-      if (data.orgName) {
-        orgName = data.orgName;
+      // ดึง orgName จาก check_admin response เลย — ไม่ต้อง fetch ซ้ำ
+      if (res.orgName) {
+        orgName = res.orgName;
         document.getElementById('header-org-name').textContent = orgName + ' (POS)';
         document.getElementById('tpl-org').textContent = orgName;
         document.getElementById('tpl-org-sub').textContent = orgName;
         document.getElementById('tpl-org-footer').textContent = orgName;
       }
+
+      document.getElementById('ov-login').classList.add('hidden');
+      document.getElementById('main-header').style.display = 'flex';
+      document.getElementById('tab-bar').style.display = 'flex';
+      document.getElementById('app').style.display = 'block';
+
+      // โหลด products ทันที (ไม่ต้องรอ)
+      loadRealProducts();
     } catch (e) {
-      console.warn('loadOrgName error:', e);
+      setBtnLoading('btn-login', false, '🔓 เข้าสู่ระบบ');
+      toast('❌ เชื่อมต่อไม่ได้: ' + e.message);
     }
   }
 
@@ -864,7 +854,12 @@
     playBeep('success');
     toast('✅ บันทึกออเดอร์สำเร็จ!');
 
-    loadRealProducts(); // รีโหลดสต็อกหลังบ้าน
+    // อัปเดต stock ใน local state ทันที ไม่ต้อง fetch ใหม่
+    cart.forEach(item => {
+      const p = realProducts.find(p => p.productId === item.productId);
+      if (p) p.stock = Math.max(0, p.stock - item.qty);
+    });
+    renderProductButtons(); // sync POS grid
   }
 
   function resetToPOS() {
