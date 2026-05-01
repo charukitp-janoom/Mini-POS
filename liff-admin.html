@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>POS & Receipt (Real DB)</title>
+  <title>POS & Receipt (Production)</title>
   
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700;900&display=swap');
     
     :root { 
-      --primary: #2563eb; 
-      --primary-dark: #1d4ed8;
-      --bg: #f1f5f9; 
+      --primary: #3b82f6; 
+      --primary-dark: #2563eb;
+      --bg: #e2e8f0; /* สีพื้นหลังหน้าจอใบเสร็จตามภาพ */
       --card: #ffffff; 
-      --text: #0f172a; 
+      --text: #1e293b; 
       --gray: #64748b; 
       --red: #ef4444;
       --green: #10b981;
@@ -41,14 +41,14 @@
     .card { 
       background: var(--card); border-radius: 16px; padding: 20px; 
       margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
-      border: 1px solid #e2e8f0;
+      border: 1px solid #cbd5e1;
     }
 
-    input[type="text"], input[type="password"], input[type="number"] { 
+    input[type="text"], input[type="password"] { 
       width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; 
       border-radius: 10px; font-size: 16px; outline: none; transition: 0.2s; background: #f8fafc;
     }
-    input[type="text"]:focus, input[type="password"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.2); background: #fff;}
+    input[type="text"]:focus, input[type="password"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.2); background: #fff;}
 
     .btn { 
       padding: 12px 20px; border: none; border-radius: 10px; font-size: 16px; 
@@ -58,7 +58,7 @@
     .btn:active { transform: scale(0.98); }
     .btn:disabled { opacity: 0.7; cursor: not-allowed; }
     
-    .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 10px rgba(37,99,235,0.3); }
+    .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 10px rgba(59,130,246,0.3); }
     .btn-primary:hover { background: var(--primary-dark); }
     .btn-red { background: var(--red); color: #fff; }
     .btn-dark { background: #334155; color: #fff; }
@@ -70,7 +70,7 @@
     #qr-wrap.show { display: block; }
     
     /* Cart Items */
-    .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; }
+    .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed #cbd5e1; }
     .cart-item:last-child { border-bottom: none; }
     .cart-item-info { flex: 1; min-width:0; padding-right:10px; }
     .cart-item-name { font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -89,14 +89,58 @@
     .stock-badge { font-size: 10px; color: var(--gray); }
     .out-stock { opacity: 0.5; pointer-events: none; }
 
-    /* Receipt Template (Used for display and canvas) */
-    .receipt-wrapper { display: flex; justify-content: center; margin-bottom: 20px; }
-    #receipt-template {
-      width: 100%; max-width: 380px; background: #fff; color: #000; 
-      padding: 25px; font-family: 'Courier New', Courier, monospace;
-      border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    /* ========================================================
+       UI ใบเสร็จ (อ้างอิงจากภาพ)
+       ======================================================== */
+    #section-receipt {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 20px;
     }
-    
+    .receipt-action-buttons {
+      display: flex; gap: 10px; width: 100%; max-width: 420px; margin-bottom: 25px;
+    }
+    .btn-print { background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1; }
+    .btn-share { background: #3b82f6; color: #fff; border: 1px solid #2563eb;}
+
+    /* กล่องออร่าสีม่วงด้านนอกใบเสร็จ */
+    .receipt-glow-container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 420px;
+      /* สร้างกรอบสีขาวและออร่าสีม่วงอ่อน */
+      box-shadow: 0 0 0 4px #fff, 0 0 0 6px #e9d5ff, 0 10px 25px rgba(168, 85, 247, 0.2);
+      margin-bottom: 30px;
+    }
+
+    #receipt-template {
+      background: #e2e8f0; /* สีเทาอ่อนเหมือนในภาพ */
+      color: #000; 
+      padding: 25px; 
+      border-radius: 8px;
+    }
+
+    /* เส้นประภายในใบเสร็จ */
+    .dashed-divider {
+      border-top: 2px dashed #1e293b;
+      margin: 15px 0;
+    }
+    .solid-divider {
+      border-top: 2px solid #1e293b;
+      margin: 15px 0;
+    }
+
+    /* Fixed Bottom Bar */
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
+      padding: 15px 20px; border-top: 1px solid #cbd5e1;
+      display: flex; justify-content: space-between; align-items: center; z-index: 90;
+      box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+    }
+
     .toast { 
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); 
       background: rgba(15, 23, 42, 0.9); color: #fff; padding: 12px 24px; 
@@ -107,14 +151,6 @@
 
     .spin { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: currentColor; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Fixed Bottom Bar */
-    .bottom-bar {
-      position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
-      padding: 15px 20px; border-top: 1px solid #e2e8f0;
-      display: flex; justify-content: space-between; align-items: center; z-index: 90;
-      box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
-    }
   </style>
 </head>
 <body>
@@ -122,20 +158,19 @@
   <!-- Loading & Login -->
   <div id="ov-load" class="overlay">
     <div class="spin" style="width:40px;height:40px;border-width:4px;color:var(--primary);margin-bottom:15px"></div>
-    <h3 id="load-text">กำลังเริ่มต้นระบบ...</h3>
+    <h3 id="load-text">กำลังโหลดระบบ...</h3>
   </div>
 
   <div id="ov-login" class="overlay hidden">
     <div class="card" style="width:100%; max-width:350px">
-      <h2 style="margin-bottom:20px;color:var(--primary)">🔐 ระบบจัดการหลังร้าน</h2>
-      <input type="password" id="login-secret" placeholder="กรอกรหัสผ่าน Admin" style="text-align:center;font-size:18px;letter-spacing:2px">
+      <h2 style="margin-bottom:20px;color:var(--primary);text-align:center;">🔐 ระบบจัดรายการ</h2>
+      <input type="password" id="login-secret" placeholder="กรอกรหัสผ่าน (เช่น 1756)" style="text-align:center;font-size:18px;letter-spacing:2px">
       <button id="btn-login" class="btn btn-primary" style="margin-top:15px;">🔓 เข้าสู่ระบบ</button>
     </div>
   </div>
 
   <header class="header" id="main-header" style="display:none;">
-    <div style="font-weight:bold; font-size:18px;">🛒 ร้านค้า POS</div>
-    <div style="font-size:12px; background:rgba(255,255,255,0.2); padding:4px 10px; border-radius:12px;">Admin Mode</div>
+    <div style="font-weight:bold; font-size:18px;">🛒 ระบบออกใบเสร็จ (POS)</div>
   </header>
 
   <div class="container" id="app" style="display:none;">
@@ -146,13 +181,13 @@
     <div id="section-pos" style="display: block;">
       
       <!-- ข้อมูลลูกค้า -->
-      <div class="card">
+      <div class="card" style="background:#fff;">
         <label style="font-size: 13px; font-weight: bold; color: var(--gray); text-transform: uppercase;">ข้อมูลลูกค้า</label>
         <input type="text" id="customer-name" placeholder="ชื่อลูกค้า (เว้นว่าง = Walk-in)" style="margin-top: 8px;">
       </div>
 
       <!-- เพิ่มสินค้า -->
-      <div class="card" style="border-color: var(--primary);">
+      <div class="card" style="border-color: var(--primary); background:#fff;">
         <label style="font-size: 13px; font-weight: bold; color: var(--primary); text-transform: uppercase; display:block; margin-bottom: 10px;">เพิ่มสินค้าลงตะกร้า</label>
 
         <div style="display:flex; gap:10px;">
@@ -161,14 +196,13 @@
           <button class="btn btn-dark" style="width: 70px; padding: 0;" onclick="handleManualSubmit()">เพิ่ม</button>
         </div>
 
-        <!-- Scanner View -->
         <div id="qr-wrap">
           <div id="qr-reader" style="width:100%;"></div>
           <button class="btn btn-red" style="border-radius:0;" onclick="stopScanner()">ปิดกล้อง</button>
         </div>
 
-        <!-- Quick Products (จากฐานข้อมูลจริง) -->
-        <div style="margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+        <!-- Products List -->
+        <div style="margin-top: 15px; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
           <div style="font-size: 12px; color: var(--gray); text-align: center;">-- หรือเลือกสินค้าจากคลัง --</div>
           <div class="mock-grid" id="products-grid">
             <div style="grid-column: span 2; text-align:center; padding: 20px; color:var(--gray);">กำลังโหลดสินค้า...</div>
@@ -177,7 +211,7 @@
       </div>
 
       <!-- ตะกร้าสินค้า -->
-      <div class="card" style="margin-bottom: 80px;">
+      <div class="card" style="margin-bottom: 80px; background:#fff;">
         <label style="font-size: 13px; font-weight: bold; color: var(--gray); text-transform: uppercase;">ตะกร้าสินค้า</label>
         <div id="cart-list" style="margin-top: 10px; min-height: 100px;">
           <div style="text-align: center; color: var(--gray); padding: 30px 0; font-size: 14px;">ยังไม่มีสินค้าในตะกร้า</div>
@@ -198,61 +232,69 @@
 
 
     <!-- ========================================== -->
-    <!-- SECTION 2: RECEIPT VIEW                    -->
+    <!-- SECTION 2: RECEIPT VIEW (UI ตามภาพ)        -->
     <!-- ========================================== -->
-    <div id="section-receipt" style="display: none;">
+    <div id="section-receipt">
       
-      <div class="card" style="background: #e0f2fe; border-color: #bae6fd; text-align: center;">
-        <h3 style="color: #0369a1; margin-bottom: 5px;">✅ บันทึกรายการสำเร็จ</h3>
-        <p style="font-size: 14px; color: #0284c7;">ระบบได้ทำการตัดสต็อกเรียบร้อยแล้ว</p>
+      <!-- ปุ่มเครื่องมือด้านบนสุด -->
+      <div class="receipt-action-buttons">
+        <button class="btn btn-print" onclick="printReceipt()">🖨️ พิมพ์</button>
+        <button class="btn btn-share" id="btn-share" onclick="shareReceipt()">📤 แชร์/บันทึกรูป</button>
       </div>
 
-      <!-- ปุ่มเครื่องมือ -->
-      <div class="card" style="background: #f8fafc; border-style: dashed; display: flex; gap: 10px; margin-bottom: 20px;">
-        <button class="btn btn-outline" style="flex:1; background: #fff;" onclick="printReceipt()">🖨️ พิมพ์</button>
-        <button class="btn btn-primary" style="flex:1;" id="btn-share" onclick="shareReceipt()">📤 แชร์/บันทึกรูป</button>
-      </div>
-
-      <!-- พื้นที่ใบเสร็จ -->
-      <div class="receipt-wrapper">
+      <!-- พื้นที่ใบเสร็จที่จะถูก Capture เป็นรูปภาพ -->
+      <div class="receipt-glow-container">
         <div id="receipt-template">
-          <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 15px; margin-bottom: 15px;">
-            <h2 style="margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 1px;">ใบเสร็จรับเงิน</h2>
-            <p style="margin: 5px 0 0 0; font-size: 14px;">ร้านค้าออนไลน์ (POS)</p>
+          
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 15px;">
+            <h2 style="margin: 0; font-size: 28px; font-weight: 900; letter-spacing: 1px; color: #1e293b;">RECEIPT</h2>
+            <p style="margin: 5px 0 0 0; font-size: 14px; color: #334155;">ร้านค้าออนไลน์ (Demo)</p>
           </div>
           
-          <div style="font-size: 14px; line-height: 1.6; margin-bottom: 15px;">
-            <div style="display: flex; justify-content: space-between;"><span><strong>เลขที่:</strong></span> <span id="tpl-id"></span></div>
-            <div style="display: flex; justify-content: space-between;"><span><strong>วันที่:</strong></span> <span id="tpl-date"></span></div>
-            <div style="display: flex; justify-content: space-between;"><span><strong>ลูกค้า:</strong></span> <span id="tpl-name"></span></div>
+          <div class="dashed-divider"></div>
+
+          <!-- Info -->
+          <div style="font-size: 14px; line-height: 1.8; color: #1e293b;">
+            <div style="display: flex; justify-content: space-between;"><span><strong>Order No:</strong></span> <span id="tpl-id"></span></div>
+            <div style="display: flex; justify-content: space-between;"><span><strong>Date:</strong></span> <span id="tpl-date"></span></div>
+            <div style="display: flex; justify-content: space-between;"><span><strong>Customer:</strong></span> <span id="tpl-name"></span></div>
           </div>
 
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+          <div class="dashed-divider"></div>
+
+          <!-- Table -->
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #1e293b; margin-top: 5px;">
             <thead>
-              <tr style="border-top: 1px solid #000; border-bottom: 1px solid #000;">
-                <th style="text-align: left; padding: 8px 0;">รายการ</th>
-                <th style="text-align: center; padding: 8px 0;">จำนวน</th>
-                <th style="text-align: right; padding: 8px 0;">ราคา</th>
+              <tr>
+                <th style="text-align: left; padding-bottom: 8px; font-weight: 900;">Item</th>
+                <th style="text-align: center; padding-bottom: 8px; font-weight: 900;">Qty</th>
+                <th style="text-align: right; padding-bottom: 8px; font-weight: 900;">Price</th>
               </tr>
             </thead>
-            <tbody id="tpl-items"></tbody>
+            <tbody id="tpl-items">
+              <!-- รายการสินค้าจะมาแทรกที่นี่ -->
+            </tbody>
           </table>
 
-          <div style="border-top: 2px solid #000; padding-top: 10px; margin-bottom: 30px;">
-            <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold;">
-              <span>ยอดรวม (บาท)</span>
-              <span id="tpl-total">0.00</span>
-            </div>
+          <div class="solid-divider"></div>
+
+          <!-- Total -->
+          <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; color: #1e293b; margin-bottom: 25px;">
+            <span>TOTAL (THB)</span>
+            <span id="tpl-total">0</span>
           </div>
 
-          <div style="text-align: center; font-size: 12px; color: #555;">
-            <p style="margin: 5px 0;">*** ขอบคุณที่ใช้บริการ ***</p>
-            <p style="margin: 5px 0;">ระบบจัดการ POS & Receipt</p>
+          <!-- Footer -->
+          <div style="text-align: center; font-size: 11px; color: #64748b;">
+            <p style="margin: 3px 0;">*** Thank you for your business ***</p>
+            <p style="margin: 3px 0;">ระบบจัดการ POS & Receipt</p>
           </div>
         </div>
       </div>
 
-      <button class="btn btn-outline" style="border:none; color: var(--gray); margin-bottom: 40px;" onclick="resetToPOS()">
+      <!-- ปุ่มกลับ -->
+      <button class="btn btn-outline" style="border:none; color: var(--gray); width: auto;" onclick="resetToPOS()">
         ⬅️ กลับไปทำรายการใหม่
       </button>
 
@@ -264,7 +306,7 @@
 
 <script>
   // ===========================================================================
-  // 1. CONFIGURATION & STATE
+  // 1. CONFIGURATION
   // ===========================================================================
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbyD5bSwaXxDKRsHTGXtVVBdwlPzZ2rhYiMOpLTY05eTd0KARegqkHWHKbValQZlbOc/exec';   // ← เปลี่ยนเป็น Web App URL จาก Code.gs ใหม่ล่าสุด
   const LIFF_ID = '2009953316-LsEBwXhK';           // ← เปลี่ยนเป็น LIFF ID ฝั่ง Admin
@@ -273,24 +315,25 @@
   let scanner = null;
   let isScanning = false;
   let cart = [];
-  let realProducts = []; // สินค้าจากฐานข้อมูล
+  let realProducts = []; 
   let currentReceiptId = '';
 
   // ===========================================================================
-  // 2. INIT & LOGIN
+  // 2. INIT & LOGIN (Real Connection)
   // ===========================================================================
   window.onload = async () => {
     try {
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) { liff.login(); return; }
+      
       document.getElementById('ov-load').classList.add('hidden');
       document.getElementById('ov-login').classList.remove('hidden');
       document.getElementById('login-secret').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
     } catch (e) { 
       toast('LIFF Error: ' + e.message); 
-      // Fallback for PC browser testing
       document.getElementById('ov-load').classList.add('hidden');
       document.getElementById('ov-login').classList.remove('hidden');
+      document.getElementById('login-secret').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
     }
   };
 
@@ -300,7 +343,7 @@
     
     setBtnLoading('btn-login', true, '');
     try {
-      // 🔧 แก้ไข: ใช้ callGAS (POST) แทน fetch (GET) เพื่อทะลุบล็อก CORS ของเบราว์เซอร์
+      // 🚀 ส่ง POST Request ไปยัง Code.gs เพื่อเช็ครหัสผ่าน
       const res = await callGAS({ action: 'check_admin', adminSecret: secret });
       setBtnLoading('btn-login', false, '🔓 เข้าสู่ระบบ');
       
@@ -311,7 +354,7 @@
       document.getElementById('main-header').style.display = 'flex';
       document.getElementById('app').style.display = 'block';
       
-      loadRealProducts(); // โหลดสินค้าจริงจากฐานข้อมูล
+      loadRealProducts(); 
     } catch(e) { 
       setBtnLoading('btn-login', false, '🔓 เข้าสู่ระบบ'); 
       toast('❌ เชื่อมต่อไม่ได้: '+e.message); 
@@ -327,7 +370,7 @@
     
     const res = await callGAS({ action: 'admin_get_products' });
     if(res.status !== 'success') {
-      grid.innerHTML = '<div style="grid-column: span 2; text-align:center; color: red;">โหลดสินค้าไม่สำเร็จ</div>';
+      grid.innerHTML = '<div style="grid-column: span 2; text-align:center; color: red;">โหลดสินค้าไม่สำเร็จ ตรวจสอบ GAS_URL</div>';
       return;
     }
     
@@ -338,7 +381,7 @@
   function renderProductButtons() {
     const grid = document.getElementById('products-grid');
     if (realProducts.length === 0) {
-      grid.innerHTML = '<div style="grid-column: span 2; text-align:center; color: var(--gray);">ไม่พบสินค้าในระบบ</div>';
+      grid.innerHTML = '<div style="grid-column: span 2; text-align:center; color: var(--gray);">ไม่พบสินค้าในคลัง Sheet Products</div>';
       return;
     }
 
@@ -363,15 +406,13 @@
   function processProductCode(code) {
     document.getElementById('manual-code').value = ''; 
     
-    // ค้นหาสินค้าจาก Database
     let product = realProducts.find(p => String(p.productId).toUpperCase() === code);
     
     if (!product) {
       playBeep('error');
-      return toast(`❌ ไม่พบรหัสสินค้า: ${code}`);
+      return toast(`❌ ไม่พบรหัสสินค้า: ${code} ในระบบ`);
     }
 
-    // ตรวจสอบ Stock ในตะกร้าเทียบกับความเป็นจริง
     const cartItem = cart.find(i => i.productId === product.productId);
     const currentQtyInCart = cartItem ? cartItem.qty : 0;
     
@@ -452,7 +493,7 @@
   }
 
   // ===========================================================================
-  // 4. CHECKOUT (ตัดสต็อกจริง)
+  // 4. CHECKOUT (ยิง API ไปตัดสต็อกจริง)
   // ===========================================================================
   async function checkoutAndGenerateReceipt() {
     if (cart.length === 0) return;
@@ -461,7 +502,7 @@
     setBtnLoading('btn-checkout', true, '');
     showLoadOverlay('กำลังบันทึกข้อมูลและตัดสต็อก...');
 
-    // ยิง API สร้างออเดอร์ POS ไปที่ Code.gs
+    // 🚀 ส่งข้อมูลตะกร้าไปที่ Backend (Code.gs) เพื่อบันทึกออเดอร์
     const payload = {
       action: 'admin_create_pos_order',
       adminSecret: adminSecret,
@@ -481,7 +522,10 @@
 
     // สร้างข้อมูลใบเสร็จหลังจากตัดสต็อกสำเร็จ
     currentReceiptId = res.orderId;
-    const dateStr = new Date().toLocaleString('th-TH');
+    
+    // ดึงวันที่ปัจจุบัน
+    const d = new Date();
+    const dateStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
     let total = res.total;
 
     // เติมข้อมูลลง Template HTML
@@ -506,13 +550,13 @@
     // สลับหน้าจอ
     document.getElementById('section-pos').style.display = 'none';
     document.getElementById('checkout-bar').style.display = 'none';
-    document.getElementById('section-receipt').style.display = 'block';
+    document.getElementById('section-receipt').style.display = 'flex';
     
     window.scrollTo(0, 0);
     playBeep('success');
     toast('✅ บันทึกออเดอร์สำเร็จ!');
 
-    // รีโหลดสต็อกใหม่หลังบ้าน เพื่อให้อัปเดตล่าสุดเผื่อมีออเดอร์ใหม่
+    // รีโหลดสต็อกใหม่หลังบ้าน เพื่อให้อัปเดตล่าสุด
     loadRealProducts();
   }
 
@@ -565,8 +609,8 @@
     printWindow.document.write('<html><head><title>Print Receipt</title>');
     printWindow.document.write(`
       <style>
-        body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; color: #000; display:flex; justify-content:center;}
-        @media print { @page { margin: 0; } body { padding: 10px; } #receipt-template { box-shadow:none; border:none; width: 100%;} }
+        body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; color: #000; display:flex; justify-content:center; background:#fff;}
+        @media print { @page { margin: 0; } body { padding: 10px; background:#fff;} #receipt-template { box-shadow:none; border:none; width: 100%; background:#fff;} }
       </style>
     `);
     printWindow.document.write('</head><body>' + templateHtml + '</body></html>');
@@ -582,7 +626,7 @@
 
     try {
       const elementToCapture = document.getElementById('receipt-template');
-      const canvas = await html2canvas(elementToCapture, { scale: 2, backgroundColor: '#ffffff' });
+      const canvas = await html2canvas(elementToCapture, { scale: 2, backgroundColor: '#e2e8f0' });
 
       canvas.toBlob(async (blob) => {
         if (!blob) throw new Error("Canvas to Blob failed");
@@ -612,11 +656,11 @@
   // 7. UTILS
   // ===========================================================================
   async function callGAS(data) {
-    // 💡 Fetch API to Real Google Apps Script
+    // 💡 ส่ง HTTP POST Request ไปที่ Google Apps Script
     try {
       const res = await fetch(GAS_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
+        headers: { 'Content-Type': 'text/plain' }, // ป้องกัน CORS Preflight
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
